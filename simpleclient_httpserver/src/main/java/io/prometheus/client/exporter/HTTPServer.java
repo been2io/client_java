@@ -1,6 +1,7 @@
 package io.prometheus.client.exporter;
 
 import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.MetricNameFilter;
 import io.prometheus.client.exporter.common.TextFormat;
 
 import java.io.ByteArrayOutputStream;
@@ -61,10 +62,16 @@ public class HTTPServer {
     public static class HTTPMetricHandler implements HttpHandler {
         private final CollectorRegistry registry;
         private final LocalByteArray response = new LocalByteArray();
+        private final MetricNameFilter filter;
         private final static String HEALTHY_RESPONSE = "Exporter is Healthy.";
 
         HTTPMetricHandler(CollectorRegistry registry) {
-          this.registry = registry;
+            this(registry, null);
+        }
+
+        HTTPMetricHandler(CollectorRegistry registry, MetricNameFilter filter) {
+            this.registry = registry;
+            this.filter = filter;
         }
 
         @Override
@@ -80,8 +87,9 @@ public class HTTPServer {
             } else {
                 String contentType = TextFormat.chooseContentType(t.getRequestHeaders().getFirst("Accept"));
                 t.getResponseHeaders().set("Content-Type", contentType);
+                MetricNameFilter.Builder filterBuilder = filter == null ? new MetricNameFilter.Builder() : filter.toBuilder();
                 TextFormat.writeFormat(contentType, osw,
-                        registry.filteredMetricFamilySamples(parseQuery(query)));
+                        registry.filteredMetricFamilySamples(filterBuilder.includeNames(parseQuery(query)).build()));
             }
 
             osw.close();
@@ -170,11 +178,15 @@ public class HTTPServer {
      * The {@code httpServer} is expected to already be bound to an address
      */
     public HTTPServer(HttpServer httpServer, CollectorRegistry registry, boolean daemon) throws IOException {
+        this(httpServer, registry, null, daemon);
+    }
+
+    public HTTPServer(HttpServer httpServer, CollectorRegistry registry, MetricNameFilter filter, boolean daemon) throws IOException {
         if (httpServer.getAddress() == null)
             throw new IllegalArgumentException("HttpServer hasn't been bound to an address");
 
         server = httpServer;
-        HttpHandler mHandler = new HTTPMetricHandler(registry);
+        HttpHandler mHandler = new HTTPMetricHandler(registry, filter);
         server.createContext("/", mHandler);
         server.createContext("/metrics", mHandler);
         server.createContext("/-/healthy", mHandler);
