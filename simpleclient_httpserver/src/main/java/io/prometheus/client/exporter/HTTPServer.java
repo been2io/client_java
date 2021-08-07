@@ -11,6 +11,9 @@ import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -62,16 +65,16 @@ public class HTTPServer {
     public static class HTTPMetricHandler implements HttpHandler {
         private final CollectorRegistry registry;
         private final LocalByteArray response = new LocalByteArray();
-        private final MetricNameFilter filter;
+        private final Config config;
         private final static String HEALTHY_RESPONSE = "Exporter is Healthy.";
 
         HTTPMetricHandler(CollectorRegistry registry) {
             this(registry, null);
         }
 
-        HTTPMetricHandler(CollectorRegistry registry, MetricNameFilter filter) {
+        HTTPMetricHandler(CollectorRegistry registry, Config config) {
             this.registry = registry;
-            this.filter = filter;
+            this.config = config == null ? new Config() : config;
         }
 
         @Override
@@ -87,9 +90,12 @@ public class HTTPServer {
             } else {
                 String contentType = TextFormat.chooseContentType(t.getRequestHeaders().getFirst("Accept"));
                 t.getResponseHeaders().set("Content-Type", contentType);
-                MetricNameFilter.Builder filterBuilder = filter == null ? new MetricNameFilter.Builder() : filter.toBuilder();
-                TextFormat.writeFormat(contentType, osw,
-                        registry.filteredMetricFamilySamples(filterBuilder.includeNames(parseQuery(query)).build()));
+                MetricNameFilter filter = new MetricNameFilter.Builder()
+                        .includeNames(parseQuery(query))
+                        .includePrefixes(config.getIncludedPrefixes())
+                        .excludePrefixes(config.getExcludedPrefixes())
+                        .build();
+                TextFormat.writeFormat(contentType, osw, registry.filteredMetricFamilySamples(filter));
             }
 
             osw.close();
@@ -174,67 +180,164 @@ public class HTTPServer {
     protected final ExecutorService executorService;
 
     /**
-     * Start a HTTP server serving Prometheus metrics from the given registry using the given {@link HttpServer}.
+     * Configure the HTTPServer to include / exclude metrics by name prefix.
+     */
+    public static class Config {
+
+        private final Collection<String> includedPrefixes;
+        private final Collection<String> excludedPrefixes;
+
+        /**
+         * Empty config means nothing is filtered; all metrics are exported.
+         */
+        public Config() {
+            includedPrefixes = Collections.emptyList();
+            excludedPrefixes = Collections.emptyList();
+        }
+
+        /**
+         * If {@code includedNamePrefixes} is not empty, only metrics with a name starting with one of these
+         * prefixes will be exported. If {@code excludedNamePrefixes} is not empty, metrics with a name
+         * starting with one of these prefixes will not be exported. If both parameters are not empty, metrics
+         * must match both criteria in order to be exported.
+         */
+        public Config(Collection<String> includedNamePrefixes, Collection<String> excludedNamePrefixes) {
+            this.includedPrefixes = unmodifiableCopy(includedNamePrefixes);
+            this.excludedPrefixes = unmodifiableCopy(excludedNamePrefixes);
+        }
+
+        private Collection<String> unmodifiableCopy(Collection<String> collection) {
+            if (collection == null) {
+                return Collections.emptyList();
+            } else {
+                return Collections.unmodifiableCollection(new ArrayList<String>(collection));
+            }
+        }
+
+        public Collection<String> getIncludedPrefixes() {
+            return includedPrefixes;
+        }
+
+        public Collection<String> getExcludedPrefixes() {
+            return excludedPrefixes;
+        }
+    }
+
+    /**
+     * Start an HTTP server serving the default Prometheus registry using non-daemon threads.
+     */
+    public HTTPServer(int port) throws IOException {
+        this(port, null);
+    }
+
+    /**
+     * Like {@link #HTTPServer(int)}, but with an additional {@link Config} parameter to configure
+     * which metrics should be exported.
+     */
+    public HTTPServer(int port, Config config) throws IOException {
+        this(port, false, config);
+    }
+
+    /**
+     * Start an HTTP server serving the default Prometheus registry.
+     */
+    public HTTPServer(int port, boolean daemon) throws IOException {
+        this(port, daemon, null);
+    }
+
+    /**
+     * Like {@link #HTTPServer(int, boolean)}, but with an additional {@link Config}
+     * parameter to configure which metrics should be exported.
+     */
+    public HTTPServer(int port, boolean daemon, Config config) throws IOException {
+        this(new InetSocketAddress(port), CollectorRegistry.defaultRegistry, daemon, config);
+    }
+
+    /**
+     * Start an HTTP server serving the default Prometheus registry using non-daemon threads.
+     */
+    public HTTPServer(String host, int port) throws IOException {
+        this(host, port, null);
+    }
+
+    /**
+     * Like {@link #HTTPServer(String, int)}, but with an additional {@link Config}
+     * parameter to configure which metrics should be exported.
+     */
+    public HTTPServer(String host, int port, Config config) throws IOException {
+        this(host, port, false, config);
+    }
+
+    /**
+     * Start an HTTP server serving the default Prometheus registry.
+     */
+    public HTTPServer(String host, int port, boolean daemon) throws IOException {
+        this(host, port, daemon, null);
+    }
+
+    /**
+     * Like {@link #HTTPServer(String, int, boolean)}, but with an additional {@link Config}
+     * parameter to configure which metrics should be exported.
+     */
+    public HTTPServer(String host, int port, boolean daemon, Config config) throws IOException {
+        this(new InetSocketAddress(host, port), CollectorRegistry.defaultRegistry, daemon, config);
+    }
+
+    /**
+     * Start an HTTP server serving Prometheus metrics from the given registry using non-daemon threads.
+     */
+    public HTTPServer(InetSocketAddress addr, CollectorRegistry registry) throws IOException {
+        this(addr, registry, null);
+    }
+
+    /**
+     * Like {@link #HTTPServer(InetSocketAddress, CollectorRegistry)}, but with an additional {@link Config}
+     * parameter to configure which metrics should be exported.
+     */
+    public HTTPServer(InetSocketAddress addr, CollectorRegistry registry, Config config) throws IOException {
+        this(addr, registry, false, config);
+    }
+
+    /**
+     * Start an HTTP server serving Prometheus metrics from the given registry.
+     */
+    public HTTPServer(InetSocketAddress addr, CollectorRegistry registry, boolean daemon) throws IOException {
+        this(addr, registry, daemon, null);
+    }
+
+    /**
+     * Like {@link #HTTPServer(InetSocketAddress, CollectorRegistry, boolean)}, but with an additional {@link Config}
+     * parameter to configure which metrics should be exported.
+     */
+    public HTTPServer(InetSocketAddress addr, CollectorRegistry registry, boolean daemon, Config config) throws IOException {
+        this(HttpServer.create(addr, 3), registry, daemon, config);
+    }
+
+    /**
+     * Start an HTTP server serving Prometheus metrics from the given registry using the given {@link HttpServer}.
      * The {@code httpServer} is expected to already be bound to an address
      */
     public HTTPServer(HttpServer httpServer, CollectorRegistry registry, boolean daemon) throws IOException {
-        this(httpServer, registry, null, daemon);
+        this(httpServer, registry, daemon, null);
     }
 
-    public HTTPServer(HttpServer httpServer, CollectorRegistry registry, MetricNameFilter filter, boolean daemon) throws IOException {
+
+    /**
+     * Like {@link #HTTPServer(HttpServer, CollectorRegistry, boolean)}, but with an additional {@link Config}
+     * parameter to configure which metrics should be exported.
+     */
+    public HTTPServer(HttpServer httpServer, CollectorRegistry registry, boolean daemon, Config config) throws IOException {
         if (httpServer.getAddress() == null)
             throw new IllegalArgumentException("HttpServer hasn't been bound to an address");
 
         server = httpServer;
-        HttpHandler mHandler = new HTTPMetricHandler(registry, filter);
+        HttpHandler mHandler = new HTTPMetricHandler(registry, config);
         server.createContext("/", mHandler);
         server.createContext("/metrics", mHandler);
         server.createContext("/-/healthy", mHandler);
         executorService = Executors.newFixedThreadPool(5, NamedDaemonThreadFactory.defaultThreadFactory(daemon));
         server.setExecutor(executorService);
         start(daemon);
-    }
-
-    /**
-     * Start a HTTP server serving Prometheus metrics from the given registry.
-     */
-    public HTTPServer(InetSocketAddress addr, CollectorRegistry registry, boolean daemon) throws IOException {
-        this(HttpServer.create(addr, 3), registry, daemon);
-    }
-
-    /**
-     * Start a HTTP server serving Prometheus metrics from the given registry using non-daemon threads.
-     */
-    public HTTPServer(InetSocketAddress addr, CollectorRegistry registry) throws IOException {
-        this(addr, registry, false);
-    }
-
-    /**
-     * Start a HTTP server serving the default Prometheus registry.
-     */
-    public HTTPServer(int port, boolean daemon) throws IOException {
-        this(new InetSocketAddress(port), CollectorRegistry.defaultRegistry, daemon);
-    }
-
-    /**
-     * Start a HTTP server serving the default Prometheus registry using non-daemon threads.
-     */
-    public HTTPServer(int port) throws IOException {
-        this(port, false);
-    }
-
-    /**
-     * Start a HTTP server serving the default Prometheus registry.
-     */
-    public HTTPServer(String host, int port, boolean daemon) throws IOException {
-        this(new InetSocketAddress(host, port), CollectorRegistry.defaultRegistry, daemon);
-    }
-
-    /**
-     * Start a HTTP server serving the default Prometheus registry using non-daemon threads.
-     */
-    public HTTPServer(String host, int port) throws IOException {
-        this(new InetSocketAddress(host, port), CollectorRegistry.defaultRegistry, false);
     }
 
     /**
