@@ -20,6 +20,18 @@ public class MetricNameFilter implements Predicate<String> {
                 && !matchesExcludedPrefixes(metricName);
     }
 
+    /**
+     * To be replaced with Java 8's {@code Predicate.and()} once we drop support for older Java versions.
+     */
+    public Predicate<String> and(final Predicate<? super String> other) {
+        return new Predicate<String>() {
+            @Override
+            public boolean test(String s) {
+                return MetricNameFilter.this.test(s) && other.test(s);
+            }
+        };
+    }
+
     private boolean matchesIncludedNames(String metricName) {
         if (includedNames.isEmpty()) {
             return true;
