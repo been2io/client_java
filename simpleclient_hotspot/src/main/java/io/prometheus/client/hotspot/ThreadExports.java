@@ -3,7 +3,7 @@ package io.prometheus.client.hotspot;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CounterMetricFamily;
 import io.prometheus.client.GaugeMetricFamily;
-import io.prometheus.client.MetricNameFilter;
+import io.prometheus.client.SampleNameFilter;
 import io.prometheus.client.Predicate;
 
 import java.lang.management.ManagementFactory;
@@ -14,6 +14,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static io.prometheus.client.SampleNameFilter.ALLOW_ALL;
 
 /**
  * Exports metrics about JVM thread areas.
@@ -52,8 +54,8 @@ public class ThreadExports extends Collector {
     this.threadBean = threadBean;
   }
 
-  void addThreadMetrics(List<MetricFamilySamples> sampleFamilies, Predicate<String> metricNameFilter) {
-    if (metricNameFilter.test(JVM_THREADS_CURRENT)) {
+  void addThreadMetrics(List<MetricFamilySamples> sampleFamilies, Predicate<String> nameFilter) {
+    if (nameFilter.test(JVM_THREADS_CURRENT)) {
       sampleFamilies.add(
               new GaugeMetricFamily(
                       JVM_THREADS_CURRENT,
@@ -61,7 +63,7 @@ public class ThreadExports extends Collector {
                       threadBean.getThreadCount()));
     }
 
-    if (metricNameFilter.test(JVM_THREADS_DAEMON)) {
+    if (nameFilter.test(JVM_THREADS_DAEMON)) {
       sampleFamilies.add(
               new GaugeMetricFamily(
                       JVM_THREADS_DAEMON,
@@ -69,7 +71,7 @@ public class ThreadExports extends Collector {
                       threadBean.getDaemonThreadCount()));
     }
 
-    if (metricNameFilter.test(JVM_THREADS_PEAK)) {
+    if (nameFilter.test(JVM_THREADS_PEAK)) {
       sampleFamilies.add(
               new GaugeMetricFamily(
                       JVM_THREADS_PEAK,
@@ -77,7 +79,7 @@ public class ThreadExports extends Collector {
                       threadBean.getPeakThreadCount()));
     }
 
-    if (metricNameFilter.test(JVM_THREADS_STARTED_TOTAL)) {
+    if (nameFilter.test(JVM_THREADS_STARTED_TOTAL)) {
       sampleFamilies.add(
               new CounterMetricFamily(
                       JVM_THREADS_STARTED_TOTAL,
@@ -85,7 +87,7 @@ public class ThreadExports extends Collector {
                       threadBean.getTotalStartedThreadCount()));
     }
 
-    if (metricNameFilter.test(JVM_THREADS_DEADLOCKED)) {
+    if (nameFilter.test(JVM_THREADS_DEADLOCKED)) {
       sampleFamilies.add(
               new GaugeMetricFamily(
                       JVM_THREADS_DEADLOCKED,
@@ -93,7 +95,7 @@ public class ThreadExports extends Collector {
                       nullSafeArrayLength(threadBean.findDeadlockedThreads())));
     }
 
-    if (metricNameFilter.test(JVM_THREADS_DEADLOCKED_MONITOR)) {
+    if (nameFilter.test(JVM_THREADS_DEADLOCKED_MONITOR)) {
       sampleFamilies.add(
               new GaugeMetricFamily(
                       JVM_THREADS_DEADLOCKED_MONITOR,
@@ -101,7 +103,7 @@ public class ThreadExports extends Collector {
                       nullSafeArrayLength(threadBean.findMonitorDeadlockedThreads())));
     }
 
-    if (metricNameFilter.test(JVM_THREADS_STATE)) {
+    if (nameFilter.test(JVM_THREADS_STATE)) {
       GaugeMetricFamily threadStateFamily = new GaugeMetricFamily(
               JVM_THREADS_STATE,
               "Current count of threads by state",
@@ -149,9 +151,9 @@ public class ThreadExports extends Collector {
   }
 
   @Override
-  public List<MetricFamilySamples> collect(Predicate<String> metricNameFilter) {
+  public List<MetricFamilySamples> collect(Predicate<String> nameFilter) {
     List<MetricFamilySamples> mfs = new ArrayList<MetricFamilySamples>();
-    addThreadMetrics(mfs, metricNameFilter == null ? MetricNameFilter.ACCEPT_ALL : metricNameFilter);
+    addThreadMetrics(mfs, nameFilter == null ? ALLOW_ALL : nameFilter);
     return mfs;
   }
 }

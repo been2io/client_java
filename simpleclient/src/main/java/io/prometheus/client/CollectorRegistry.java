@@ -137,16 +137,16 @@ public class CollectorRegistry {
    * histogram, you must include the '_count', '_sum' and '_bucket' names.
    */
   public Enumeration<Collector.MetricFamilySamples> filteredMetricFamilySamples(Set<String> includedNames) {
-    return new MetricFamilySamplesEnumeration(new MetricNameFilter.Builder().includeNames(includedNames).build());
+    return new MetricFamilySamplesEnumeration(new SampleNameFilter.Builder().nameMustBeEqualTo(includedNames).build());
   }
 
   /**
-   * Enumeration of metrics where {@code metricNameFilter.test(name)} returns {@code true} for any {@code name} in
+   * Enumeration of metrics where {@code sampleNameFilter.test(name)} returns {@code true} for any {@code name} in
    * {@link Collector.MetricFamilySamples#getNames()}.
-   * @param metricNameFilter may be {@code null}, indicating that the enumeration should contain all metrics.
+   * @param sampleNameFilter may be {@code null}, indicating that the enumeration should contain all metrics.
    */
-  public Enumeration<Collector.MetricFamilySamples> filteredMetricFamilySamples(Predicate<String> metricNameFilter) {
-    return new MetricFamilySamplesEnumeration(metricNameFilter);
+  public Enumeration<Collector.MetricFamilySamples> filteredMetricFamilySamples(Predicate<String> sampleNameFilter) {
+    return new MetricFamilySamplesEnumeration(sampleNameFilter);
   }
 
   class MetricFamilySamplesEnumeration implements Enumeration<Collector.MetricFamilySamples> {
@@ -154,23 +154,23 @@ public class CollectorRegistry {
     private final Iterator<Collector> collectorIter;
     private Iterator<Collector.MetricFamilySamples> metricFamilySamples;
     private Collector.MetricFamilySamples next;
-    private final Predicate<String> metricNameFilter;
+    private final Predicate<String> sampleNameFilter;
 
-    MetricFamilySamplesEnumeration(Predicate<String> metricNameFilter) {
-      this.metricNameFilter = metricNameFilter;
+    MetricFamilySamplesEnumeration(Predicate<String> sampleNameFilter) {
+      this.sampleNameFilter = sampleNameFilter;
       this.collectorIter = filteredCollectorIterator();
       findNextElement();
     }
 
     private Iterator<Collector> filteredCollectorIterator() {
-      if (metricNameFilter == null) {
+      if (sampleNameFilter == null) {
         return collectors().iterator();
       } else {
         HashSet<Collector> collectors = new HashSet<Collector>();
         synchronized (namesCollectorsLock) {
           for (Map.Entry<String, Collector> entry : namesToCollectors.entrySet()) {
             // Note that namesToCollectors contains keys for all combinations of suffixes (_total, _info, etc.).
-            if (metricNameFilter.test(entry.getKey())) {
+            if (sampleNameFilter.test(entry.getKey())) {
               collectors.add(entry.getValue());
             }
           }
@@ -187,16 +187,16 @@ public class CollectorRegistry {
       next = null;
 
       while (metricFamilySamples != null && metricFamilySamples.hasNext()) {
-        next = metricFamilySamples.next().filter(metricNameFilter);
+        next = metricFamilySamples.next().filter(sampleNameFilter);
         if (next != null) {
           return;
         }
       }
 
       while (collectorIter.hasNext()) {
-        metricFamilySamples = collectorIter.next().collect(metricNameFilter).iterator();
+        metricFamilySamples = collectorIter.next().collect(sampleNameFilter).iterator();
         while (metricFamilySamples.hasNext()) {
-          next = metricFamilySamples.next().filter(metricNameFilter);
+          next = metricFamilySamples.next().filter(sampleNameFilter);
           if (next != null) {
             return;
           }

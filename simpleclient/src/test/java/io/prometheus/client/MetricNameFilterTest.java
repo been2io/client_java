@@ -41,7 +41,7 @@ public class MetricNameFilterTest {
                     .register(registry);
             counter2.inc();
 
-            MetricNameFilter filter = new MetricNameFilter.Builder().build();
+            SampleNameFilter filter = new SampleNameFilter.Builder().build();
             List<Collector.MetricFamilySamples> mfsList = Collections.list(registry.filteredMetricFamilySamples(filter));
             assertSamplesInclude(mfsList, "counter1_total", 2);
             assertSamplesInclude(mfsList, "counter1_created", 2);
@@ -49,40 +49,40 @@ public class MetricNameFilterTest {
             assertSamplesInclude(mfsList, "counter2_created", 1);
             assertTotalNumberOfSamples(mfsList, 6);
 
-            filter = new MetricNameFilter.Builder().includePrefixes("counter1").build();
+            filter = new SampleNameFilter.Builder().nameMustStartWith("counter1").build();
             mfsList = Collections.list(registry.filteredMetricFamilySamples(filter));
             assertSamplesInclude(mfsList, "counter1_total", 2);
             assertSamplesInclude(mfsList, "counter1_created", 2);
             assertTotalNumberOfSamples(mfsList, 4);
 
-            filter = new MetricNameFilter.Builder().excludePrefixes("counter1").build();
+            filter = new SampleNameFilter.Builder().nameMustNotStartWith("counter1").build();
             mfsList = Collections.list(registry.filteredMetricFamilySamples(filter));
             assertSamplesInclude(mfsList, "counter2_total", 1);
             assertSamplesInclude(mfsList, "counter2_created", 1);
             assertTotalNumberOfSamples(mfsList, 2);
 
-            filter = new MetricNameFilter.Builder()
-                    .includeNames("counter2_total")
-                    .includeNames("counter1_total")
+            filter = new SampleNameFilter.Builder()
+                    .nameMustBeEqualTo("counter2_total")
+                    .nameMustBeEqualTo("counter1_total")
                     .build();
             mfsList = Collections.list(registry.filteredMetricFamilySamples(filter));
             assertSamplesInclude(mfsList, "counter1_total", 2);
             assertSamplesInclude(mfsList, "counter2_total", 1);
             assertTotalNumberOfSamples(mfsList, 3);
 
-            filter = new MetricNameFilter.Builder()
-                    .includePrefixes("counter1")
-                    .excludePrefixes("counter1_created")
+            filter = new SampleNameFilter.Builder()
+                    .nameMustStartWith("counter1")
+                    .nameMustNotStartWith("counter1_created")
                     .build();
             mfsList = Collections.list(registry.filteredMetricFamilySamples(filter));
             assertSamplesInclude(mfsList, "counter1_total", 2);
             assertTotalNumberOfSamples(mfsList, 2);
 
             // The following filter would be weird in practice, but let's test this anyways :)
-            filter = new MetricNameFilter.Builder()
-                    .includeNames("counter1_created")
-                    .includeNames("counter2_created")
-                    .excludePrefixes("counter1")
+            filter = new SampleNameFilter.Builder()
+                    .nameMustBeEqualTo("counter1_created")
+                    .nameMustBeEqualTo("counter2_created")
+                    .nameMustNotStartWith("counter1")
                     .build();
             mfsList = Collections.list(registry.filteredMetricFamilySamples(filter));
             assertSamplesInclude(mfsList, "counter2_created", 1);
@@ -115,22 +115,22 @@ public class MetricNameFilterTest {
         };
         registry.register(myCollector);
 
-        MetricNameFilter filter = new MetricNameFilter.Builder()
-                .includePrefixes("temperature_centigrade")
+        SampleNameFilter filter = new SampleNameFilter.Builder()
+                .nameMustStartWith("temperature_centigrade")
                 .build();
         List<Collector.MetricFamilySamples> mfsList = Collections.list(registry.filteredMetricFamilySamples(filter));
         assertSamplesInclude(mfsList, "temperature_centigrade", 2);
         assertTotalNumberOfSamples(mfsList, 2);
 
-        filter = new MetricNameFilter.Builder()
-                .excludePrefixes("temperature_centigrade")
+        filter = new SampleNameFilter.Builder()
+                .nameMustNotStartWith("temperature_centigrade")
                 .build();
         mfsList = Collections.list(registry.filteredMetricFamilySamples(filter));
         assertSamplesInclude(mfsList, "temperature_fahrenheit", 2);
         assertTotalNumberOfSamples(mfsList, 2);
 
-        filter = new MetricNameFilter.Builder()
-                .excludePrefixes("temperature")
+        filter = new SampleNameFilter.Builder()
+                .nameMustNotStartWith("temperature")
                 .build();
         mfsList = Collections.list(registry.filteredMetricFamilySamples(filter));
         assertTotalNumberOfSamples(mfsList, 0);
@@ -146,7 +146,7 @@ public class MetricNameFilterTest {
         histogram.observe(200);
         registry.register(histogram);
 
-        MetricNameFilter filter = new MetricNameFilter.Builder().build();
+        SampleNameFilter filter = new SampleNameFilter.Builder().build();
         List<Collector.MetricFamilySamples> mfsList = Collections.list(registry.filteredMetricFamilySamples(filter));
         assertSamplesInclude(mfsList, "test_histogram_bucket", 15);
         assertSamplesInclude(mfsList, "test_histogram_count", 1);
@@ -154,14 +154,14 @@ public class MetricNameFilterTest {
         assertSamplesInclude(mfsList, "test_histogram_created", 1);
         assertTotalNumberOfSamples(mfsList, 18);
 
-        filter = new MetricNameFilter.Builder()
-                .includePrefixes("test_histogram")
+        filter = new SampleNameFilter.Builder()
+                .nameMustStartWith("test_histogram")
                 // includeNames is for the names[] query parameter, as for example used in the HTTPServer.
                 // If histogram_created is missing in the names[] list, it should not be exported
                 // even though includePrefixes matches histogram_created.
-                .includeNames("test_histogram_bucket")
-                .includeNames("test_histogram_count")
-                .includeNames("test_histogram_sum")
+                .nameMustBeEqualTo("test_histogram_bucket")
+                .nameMustBeEqualTo("test_histogram_count")
+                .nameMustBeEqualTo("test_histogram_sum")
                 .build();
         mfsList = Collections.list(registry.filteredMetricFamilySamples(filter));
         assertSamplesInclude(mfsList, "test_histogram_bucket", 15);
@@ -169,10 +169,10 @@ public class MetricNameFilterTest {
         assertSamplesInclude(mfsList, "test_histogram_sum", 1);
         assertTotalNumberOfSamples(mfsList, 17);
 
-        filter = new MetricNameFilter.Builder()
-                .includePrefixes("test_histogram")
+        filter = new SampleNameFilter.Builder()
+                .nameMustStartWith("test_histogram")
                 // histogram without buckets
-                .excludePrefixes("test_histogram_bucket")
+                .nameMustNotStartWith("test_histogram_bucket")
                 .build();
         mfsList = Collections.list(registry.filteredMetricFamilySamples(filter));
         assertSamplesInclude(mfsList, "test_histogram_count", 1);
@@ -182,7 +182,7 @@ public class MetricNameFilterTest {
     }
 
     /**
-     * Before {@link MetricNameFilter} was introduced, the {@link CollectorRegistry#filteredMetricFamilySamples(Set)}
+     * Before {@link SampleNameFilter} was introduced, the {@link CollectorRegistry#filteredMetricFamilySamples(Set)}
      * method could be used to pass included names directly. That method still there for compatibility.
      * This is the original test copied over from {@link CollectorRegistryTest}.
      */

@@ -1,7 +1,7 @@
 package io.prometheus.client.exporter;
 
 import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.MetricNameFilter;
+import io.prometheus.client.SampleNameFilter;
 import io.prometheus.client.Predicate;
 import io.prometheus.client.exporter.common.TextFormat;
 
@@ -63,16 +63,16 @@ public class HTTPServer {
     public static class HTTPMetricHandler implements HttpHandler {
         private final CollectorRegistry registry;
         private final LocalByteArray response = new LocalByteArray();
-        private final Predicate<String> metricNameFilter;
+        private final Predicate<String> sampleNameFilter;
         private final static String HEALTHY_RESPONSE = "Exporter is Healthy.";
 
         HTTPMetricHandler(CollectorRegistry registry) {
             this(registry, null);
         }
 
-        HTTPMetricHandler(CollectorRegistry registry, Predicate<String> metricNameFilter) {
+        HTTPMetricHandler(CollectorRegistry registry, Predicate<String> sampleNameFilter) {
             this.registry = registry;
-            this.metricNameFilter = metricNameFilter;
+            this.sampleNameFilter = sampleNameFilter;
         }
 
         @Override
@@ -117,11 +117,11 @@ public class HTTPServer {
         }
 
         private Predicate<String> composeFilter(String query) throws IOException {
-            Predicate<String> result = this.metricNameFilter;
+            Predicate<String> result = this.sampleNameFilter;
             Set<String> includedNames = parseQuery(query);
             if (!includedNames.isEmpty()) {
-                MetricNameFilter filterFromQueryParams = new MetricNameFilter.Builder()
-                        .includePrefixes(includedNames)
+                SampleNameFilter filterFromQueryParams = new SampleNameFilter.Builder()
+                        .nameMustBeEqualTo(includedNames)
                         .build();
                 if (result == null) {
                     result = filterFromQueryParams;
@@ -200,11 +200,11 @@ public class HTTPServer {
     }
 
     /**
-     * Like {@link #HTTPServer(int)}, but with an additional {@code metricNameFilter} parameter
+     * Like {@link #HTTPServer(int)}, but with an additional {@code sampleNameFilter} parameter
      * to configure which metrics should be exported.
      */
-    public HTTPServer(int port, Predicate<String> metricNameFilter) throws IOException {
-        this(port, false, metricNameFilter);
+    public HTTPServer(int port, Predicate<String> sampleNameFilter) throws IOException {
+        this(port, false, sampleNameFilter);
     }
 
     /**
@@ -215,11 +215,11 @@ public class HTTPServer {
     }
 
     /**
-     * Like {@link #HTTPServer(int, boolean)}, but with an additional {@code metricNameFilter}
+     * Like {@link #HTTPServer(int, boolean)}, but with an additional {@code sampleNameFilter}
      * parameter to configure which metrics should be exported.
      */
-    public HTTPServer(int port, boolean daemon, Predicate<String> metricNameFilter) throws IOException {
-        this(new InetSocketAddress(port), CollectorRegistry.defaultRegistry, daemon, metricNameFilter);
+    public HTTPServer(int port, boolean daemon, Predicate<String> sampleNameFilter) throws IOException {
+        this(new InetSocketAddress(port), CollectorRegistry.defaultRegistry, daemon, sampleNameFilter);
     }
 
     /**
@@ -230,11 +230,11 @@ public class HTTPServer {
     }
 
     /**
-     * Like {@link #HTTPServer(String, int)}, but with an additional {@code metricNameFilter}
+     * Like {@link #HTTPServer(String, int)}, but with an additional {@code sampleNameFilter}
      * parameter to configure which metrics should be exported.
      */
-    public HTTPServer(String host, int port, Predicate<String> metricNameFilter) throws IOException {
-        this(host, port, false, metricNameFilter);
+    public HTTPServer(String host, int port, Predicate<String> sampleNameFilter) throws IOException {
+        this(host, port, false, sampleNameFilter);
     }
 
     /**
@@ -245,11 +245,11 @@ public class HTTPServer {
     }
 
     /**
-     * Like {@link #HTTPServer(String, int, boolean)}, but with an additional {@code metricNameFilter}
+     * Like {@link #HTTPServer(String, int, boolean)}, but with an additional {@code sampleNameFilter}
      * parameter to configure which metrics should be exported.
      */
-    public HTTPServer(String host, int port, boolean daemon, Predicate<String> metricNameFilter) throws IOException {
-        this(new InetSocketAddress(host, port), CollectorRegistry.defaultRegistry, daemon, metricNameFilter);
+    public HTTPServer(String host, int port, boolean daemon, Predicate<String> sampleNameFilter) throws IOException {
+        this(new InetSocketAddress(host, port), CollectorRegistry.defaultRegistry, daemon, sampleNameFilter);
     }
 
     /**
@@ -260,11 +260,11 @@ public class HTTPServer {
     }
 
     /**
-     * Like {@link #HTTPServer(InetSocketAddress, CollectorRegistry)}, but with an additional {@code metricNameFilter}
+     * Like {@link #HTTPServer(InetSocketAddress, CollectorRegistry)}, but with an additional {@code sampleNameFilter}
      * parameter to configure which metrics should be exported.
      */
-    public HTTPServer(InetSocketAddress addr, CollectorRegistry registry, Predicate<String> metricNameFilter) throws IOException {
-        this(addr, registry, false, metricNameFilter);
+    public HTTPServer(InetSocketAddress addr, CollectorRegistry registry, Predicate<String> sampleNameFilter) throws IOException {
+        this(addr, registry, false, sampleNameFilter);
     }
 
     /**
@@ -276,10 +276,10 @@ public class HTTPServer {
 
     /**
      * Like {@link #HTTPServer(InetSocketAddress, CollectorRegistry, boolean)}, but with an additional
-     * {@code metricNameFilter} parameter to configure which metrics should be exported.
+     * {@code sampleNameFilter} parameter to configure which metrics should be exported.
      */
-    public HTTPServer(InetSocketAddress addr, CollectorRegistry registry, boolean daemon, Predicate<String> metricNameFilter) throws IOException {
-        this(HttpServer.create(addr, 3), registry, daemon, metricNameFilter);
+    public HTTPServer(InetSocketAddress addr, CollectorRegistry registry, boolean daemon, Predicate<String> sampleNameFilter) throws IOException {
+        this(HttpServer.create(addr, 3), registry, daemon, sampleNameFilter);
     }
 
     /**
@@ -292,15 +292,15 @@ public class HTTPServer {
 
 
     /**
-     * Like {@link #HTTPServer(HttpServer, CollectorRegistry, boolean)}, but with an additional {@code metricNameFilter}
+     * Like {@link #HTTPServer(HttpServer, CollectorRegistry, boolean)}, but with an additional {@code sampleNameFilter}
      * parameter to configure which metrics should be exported.
      */
-    public HTTPServer(HttpServer httpServer, CollectorRegistry registry, boolean daemon, Predicate<String> metricNameFilter) throws IOException {
+    public HTTPServer(HttpServer httpServer, CollectorRegistry registry, boolean daemon, Predicate<String> sampleNameFilter) throws IOException {
         if (httpServer.getAddress() == null)
             throw new IllegalArgumentException("HttpServer hasn't been bound to an address");
 
         server = httpServer;
-        HttpHandler mHandler = new HTTPMetricHandler(registry, metricNameFilter);
+        HttpHandler mHandler = new HTTPMetricHandler(registry, sampleNameFilter);
         server.createContext("/", mHandler);
         server.createContext("/metrics", mHandler);
         server.createContext("/-/healthy", mHandler);

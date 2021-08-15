@@ -4,7 +4,6 @@ package io.prometheus.client;
 import io.prometheus.client.exemplars.Exemplar;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -25,35 +24,33 @@ public abstract class Collector {
   public abstract List<MetricFamilySamples> collect();
 
   /**
-   * Like {@link #collect()}, but the result may exclude {@code MetricFamilySamples} where
-   * {@code metricNameFilter.test(name)} is {@code false} for all Sample names.
+   * Like {@link #collect()}, but the result should not contain {@code MetricFamilySamples} where
+   * {@code sampleNameFilter.test(name)} is {@code false} for all Sample names.
    * <p>
    * The default implementation first collects all {@code MetricFamilySamples} and then discards the ones
-   * where {@code metricNameFilter.test(name)} returns {@code false} for all names in
+   * where {@code sampleNameFilter.test(name)} returns {@code false} for all names in
    * {@link MetricFamilySamples#getNames()}.
    * To improve performance, collector implementations should override this method to prevent
    * {@code MetricFamilySamples} from being collected if they will be discarded anyways.
    * See {@code ThreadExports} for an example.
    * <p>
-   * Note that the resulting List may contain "false positives", i.e. {@code MetricFamilySamples} where it turns
-   * out that none of the Sample names returns {@code true} for {@code metricNameFilter.test(name)},
-   * or "partial matches", i.e. {@code MetricFamilySamples} where some Sample names return {@code true} for
-   * {@code metricNameFilter.test(name)} but some Sample names return {@code false}.
+   * Note that the resulting List may contain {@code MetricFamilySamples} where some Sample names return
+   * {@code true} for {@code sampleNameFilter.test(name)} but some Sample names return {@code false}.
    * This is ok, because before we produce the output format we will call
-   * {@link MetricFamilySamples#filter(Predicate)} to strip all Samples where {@code metricNameFilter.test(name)}
+   * {@link MetricFamilySamples#filter(Predicate)} to strip all Samples where {@code sampleNameFilter.test(name)}
    * returns {@code false}.
    *
-   * @param metricNameFilter may be {@code null}, indicating that all metrics should be collected.
+   * @param sampleNameFilter may be {@code null}, indicating that all metrics should be collected.
    */
-  public List<MetricFamilySamples> collect(Predicate<String> metricNameFilter) {
+  public List<MetricFamilySamples> collect(Predicate<String> sampleNameFilter) {
     List<MetricFamilySamples> all = collect();
-    if (metricNameFilter == null) {
+    if (sampleNameFilter == null) {
       return all;
     }
     List<MetricFamilySamples> remaining = new ArrayList<MetricFamilySamples>(all.size());
     for (MetricFamilySamples mfs : all) {
       for (String name : mfs.getNames()) {
-        if (metricNameFilter.test(name)) {
+        if (sampleNameFilter.test(name)) {
           remaining.add(mfs);
           break;
         }
@@ -119,17 +116,17 @@ public abstract class Collector {
 
     /**
      *
-     * @param metricNameFilter may be {@link null} indicating that the result contains the complete list of samples.
-     * @return A new MetricFamilySamples containing only the Samples matching the metricNameFilter,
+     * @param sampleNameFilter may be {@link null} indicating that the result contains the complete list of samples.
+     * @return A new MetricFamilySamples containing only the Samples matching the {@code sampleNameFilter},
      *         or {@code null} if no Sample matches.
      */
-    public MetricFamilySamples filter(Predicate<String> metricNameFilter) {
-      if (metricNameFilter == null) {
+    public MetricFamilySamples filter(Predicate<String> sampleNameFilter) {
+      if (sampleNameFilter == null) {
         return this;
       }
       List<Sample> remainingSamples = new ArrayList<Sample>(samples.size());
       for (Sample sample : samples) {
-        if (metricNameFilter.test(sample.name)) {
+        if (sampleNameFilter.test(sample.name)) {
           remainingSamples.add(sample);
         }
       }
