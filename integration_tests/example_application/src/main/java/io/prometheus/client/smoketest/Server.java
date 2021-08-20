@@ -1,5 +1,6 @@
 package io.prometheus.client.smoketest;
 
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.exporter.HTTPServer;
 import io.prometheus.client.hotspot.DefaultExports;
@@ -19,6 +20,7 @@ public class Server {
         .labelNames("path")
         .register();
     counter.labels("/hello-world").inc();
+    CollectorRegistry.defaultRegistry.metricFamilySamples();
     new HTTPServer(9000);
     Thread.currentThread().join(); // sleep forever
   }
