@@ -1,4 +1,4 @@
-package io.prometheus.client.bridge;
+package io.prometheus.client.sdk;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -8,14 +8,10 @@ import org.junit.Test;
 
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
-import io.prometheus.client.bridge.Nightingale;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 public class NightingaleTest {
   @Test
@@ -26,7 +22,7 @@ public class NightingaleTest {
       Gauge labels = Gauge.build().name("labels"+i).help("help").labelNames("l").register(registry);
       labels.labels("fo*o").inc();
     }
-    Encoder encoder =new Encoder("dsadf",100,1000,"11");
+    Encoder encoder =new Encoder("dsadf",100,1000,"11",null);
     for (Collector.MetricFamilySamples metricFamilySamples : Collections.list(registry.metricFamilySamples())) {
       for (Collector.MetricFamilySamples.Sample sample : metricFamilySamples.samples) {
         encoder.add(sample);
@@ -39,11 +35,24 @@ public class NightingaleTest {
   public void testPush() throws Exception {
     // Create a metric.
     CollectorRegistry registry = new CollectorRegistry();
-    Gauge labels = Gauge.build().name("labels").help("help").labelNames("l").register(registry);
+    Gauge labels = Gauge.build().name("test_test").help("help").labelNames("l").register(registry);
     labels.labels("fo*o").inc();
     // Push.
-    Nightingale g = new Nightingale("http://n9e.example.com/api/transfer/push");
+    Nightingale g = new Nightingale("http://n9e.example.com/api/transfer/push",10,null);
     g.push(registry);
-
+  }
+  @Test
+  public void testPushLoop(){
+    Map<String,String> tags=new HashMap<>();
+    tags.put("test","test2");
+    Metrics metric= new Metrics("infra","metrics","test", tags);
+    Gauge labels = Gauge.build().name("test_test2").help("help").labelNames("l").register();
+    labels.labels("fo*o").inc();
+    metric.StartPushLoop(1,"http://10.110.20.100:8080/api/transfer/push");
+    try {
+      Thread.sleep(1000*60);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
   }
 }

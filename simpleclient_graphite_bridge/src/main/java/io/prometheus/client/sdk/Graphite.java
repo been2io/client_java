@@ -1,4 +1,4 @@
-package io.prometheus.client.bridge;
+package io.prometheus.client.sdk;
 
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;

@@ -1,11 +1,9 @@
-package io.prometheus.client.bridge;
+package io.prometheus.client.sdk;
 
 import io.prometheus.client.Collector;
-import io.prometheus.client.Collector.MetricFamilySamples;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
-import com.alibaba.fastjson.JSON;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
@@ -14,34 +12,41 @@ import org.apache.http.util.EntityUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
-import static io.prometheus.client.bridge.StringEscapeUtils.escapeJson;
+import static io.prometheus.client.sdk.StringEscapeUtils.escapeJson;
 
 public class Encoder {
     private final HttpClient client;
     private ArrayList<Collector.MetricFamilySamples.Sample> samples;
     private static final Logger logger = Logger.getLogger(Encoder.class.getName());
-
     private final String url;
     private final int batchSize;
     private final long stepS;
     private final String nid;
     private StringBuilder builder = new StringBuilder();
-
-
-    Encoder(String url, int batchSize, long stepS, String nid) {
+    private final Map<String, String> tags;
+    private  String tagStr;
+    Encoder(String url, int batchSize, long stepS, String nid,Map<String, String> tags) {
         this.stepS = stepS;
         this.nid = nid;
         this.url = url;
         this.client = HttpClients.createDefault();
         this.batchSize = batchSize;
         this.samples = new ArrayList<>(batchSize);
+        this.tags = tags;
+        this.tagStr = this.tags.entrySet().stream().map((e)->{
+            return escapeJson(e.getKey())+"="+escapeJson(e.getValue());
+        }).collect(Collectors.joining(","));
+
+
     }
+
+
 
     void add(Collector.MetricFamilySamples.Sample sample) {
         this.samples.add(sample);
@@ -75,8 +80,9 @@ public class Encoder {
             return;
         }
         sb.append(",\"tags\":\"");
+        sb.append(this.tagStr);
         for (int i = 0; i < sample.labelNames.size(); ++i) {
-            sb.append(escapeJson(sample.labelNames.get(i))).append("=")
+            sb.append(',').append(escapeJson(sample.labelNames.get(i))).append("=")
                     .append(escapeJson(sample.labelValues.get(i).replace(" ", "-")));
         }
         sb.append('"');
@@ -95,7 +101,7 @@ public class Encoder {
             writeMessage(builder, sample);
         });
         builder.append("]");
-        String body=builder.toString();
+        String body = builder.toString();
         builder.setLength(0);
         return body;
     }
@@ -119,15 +125,14 @@ public class Encoder {
 
                         // do something useful with the response
                     } catch (final IOException ex) {
-                        logger.log(Level.WARNING, "Exception " + ex + " get response from " +this.url, ex);
+                        logger.log(Level.WARNING, "Exception " + ex + " get response from " + this.url, ex);
 
                         // In case of an IOException the connection will be released
                         // back to the connection manager automatically
                     }
                 }
             } catch (Exception e) {
-                logger.log(Level.WARNING, "Exception " + e + " pushing to " +this.url, e);
-
+                logger.log(Level.WARNING, "Exception " + e + " pushing to " + this.url, e);
             }
 
         }

@@ -1,4 +1,4 @@
-package io.prometheus.client.bridge;
+package io.prometheus.client.sdk;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -9,7 +9,6 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;

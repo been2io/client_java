@@ -1,55 +1,31 @@
-package io.prometheus.client.bridge;
+package io.prometheus.client.sdk;
 
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ContentType;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.HttpClientBuilder;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.net.Socket;
-import java.nio.charset.Charset;
 import java.util.Collections;
-import java.util.logging.Level;
+import java.util.Map;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
-import java.util.regex.Matcher;
 
-/**
- * Export metrics in the Graphite plaintext format.
- * <p>
- * <pre>
- * {@code
- *  Graphite g = new Graphite("localhost", 2003);
- *  // Push the default registry once.
- *  g.push(CollectorRegistry.defaultRegistry);
- *
- *  // Push the default registry every 60 seconds.
- *  Thread thread = g.start(CollectorRegistry.defaultRegistry, 60);
- *  // Stop pushing.
- *  thread.interrupt();
- *  thread.join();
- * }
- * </pre>
- * <p>
- */
+
 public class Nightingale {
     private static final Logger logger = Logger.getLogger(Nightingale.class.getName());
-
+    static final String defaultUrl = "http://localhost:2080/v1/push";
     private final Encoder encoder;
-    public Nightingale(String url) {
-        this.encoder = new Encoder(url, 100, 10, "sdk");
+
+    public Nightingale(String url, int batchSize, int interval, String tenantId, Map<String, String> globalTags) {
+        this.encoder = new Encoder(url, 100, 10, tenantId,globalTags);
     }
+
+    public Nightingale(String url,int interval, Map<String, String> globalTags) {
+        this(url, 1000, interval, "1", globalTags);
+    }
+
 
     /**
      * Push samples from the given registry to Graphite.
      */
-    public void push(CollectorRegistry registry)  {
+    public void push(CollectorRegistry registry) {
         for (Collector.MetricFamilySamples metricFamilySamples : Collections.list(registry.metricFamilySamples())) {
             for (Collector.MetricFamilySamples.Sample sample : metricFamilySamples.samples) {
                 this.encoder.add(sample);

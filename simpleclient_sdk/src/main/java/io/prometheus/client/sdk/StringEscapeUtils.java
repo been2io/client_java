@@ -3,7 +3,7 @@
 // (powered by FernFlower decompiler)
 //
 
-package io.prometheus.client.bridge;
+package io.prometheus.client.sdk;
 
 
 public final class StringEscapeUtils {
