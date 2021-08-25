@@ -9,6 +9,7 @@ import org.junit.Test;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,8 +48,23 @@ public class NightingaleTest {
     tags.put("test","test2");
     Metrics metric= new Metrics("infra","metrics","test", tags);
     Gauge labels = Gauge.build().name("test_test2").help("help").labelNames("l").register();
-    labels.labels("fo*o").inc();
+    labels.labels("foo").inc();
+    labels.labels("foo").inc();
     metric.StartPushLoop(1,"http://10.110.20.100:8080/api/transfer/push");
+    try {
+      Thread.sleep(1000*60);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+  }
+  @Test
+  public void testExport() throws IOException {
+    Map<String,String> tags=new HashMap<>();
+    tags.put("test","test2");
+    Metrics metric= new Metrics("infra","metrics","test", tags);
+    Gauge labels = Gauge.build().name("test_test2").help("help").labelNames("l","l2").register();
+    labels.labels("foo","f2").inc();
+    metric.StartPullHttpServer(9000);
     try {
       Thread.sleep(1000*60);
     } catch (InterruptedException e) {

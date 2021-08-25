@@ -12,6 +12,7 @@ import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -19,6 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPOutputStream;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -34,7 +36,7 @@ import com.sun.net.httpserver.HttpServer;
  * HTTPServer server = new HTTPServer(1234);
  * }
  * </pre>
- * */
+ */
 public class HTTPServer {
 
     static {
@@ -49,8 +51,7 @@ public class HTTPServer {
 
     private static class LocalByteArray extends ThreadLocal<ByteArrayOutputStream> {
         @Override
-        protected ByteArrayOutputStream initialValue()
-        {
+        protected ByteArrayOutputStream initialValue() {
             return new ByteArrayOutputStream(1 << 20);
         }
     }
@@ -62,9 +63,16 @@ public class HTTPServer {
         private final CollectorRegistry registry;
         private final LocalByteArray response = new LocalByteArray();
         private final static String HEALTHY_RESPONSE = "Exporter is Healthy.";
+        private String tagsString;
 
         HTTPMetricHandler(CollectorRegistry registry) {
-          this.registry = registry;
+            this.registry = registry;
+            Map<String, String> tags = registry.getGlobalTags();
+            if (tags != null && tags.size() > 0) {
+                tagsString = tags.entrySet().stream().map((e) ->
+                        e.getKey() + "=\"" + e.getValue()+"\""
+                ).collect(Collectors.joining(","));
+            }
         }
 
         @Override
@@ -81,7 +89,7 @@ public class HTTPServer {
                 String contentType = TextFormat.chooseContentType(t.getRequestHeaders().getFirst("Accept"));
                 t.getResponseHeaders().set("Content-Type", contentType);
                 TextFormat.writeFormat(contentType, osw,
-                        registry.filteredMetricFamilySamples(parseQuery(query)));
+                        registry.filteredMetricFamilySamples(parseQuery(query)),tagsString);
             }
 
             osw.close();

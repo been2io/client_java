@@ -5,6 +5,7 @@ import io.prometheus.client.exporter.HTTPServer;
 
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,6 +34,7 @@ public class Metrics {
             podName = ManagementFactory.getRuntimeMXBean().getName();
         }
         this.tags.put("pid", podName);
+        this.registry.setGlobalTags(this.tags);
     }
 
     public void StartPushLoop(int interval) {
@@ -45,7 +47,7 @@ public class Metrics {
     }
 
     public HTTPServer StartPullHttpServer(int port) throws IOException {
-        HTTPServer server = new HTTPServer(port);
+        HTTPServer server = new HTTPServer(new InetSocketAddress(port), this.registry, false);
         return server;
     }
 

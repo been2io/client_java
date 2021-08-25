@@ -30,8 +30,9 @@ public class Encoder {
     private final String nid;
     private StringBuilder builder = new StringBuilder();
     private final Map<String, String> tags;
-    private  String tagStr;
-    Encoder(String url, int batchSize, long stepS, String nid,Map<String, String> tags) {
+    private String tagStr;
+
+    Encoder(String url, int batchSize, long stepS, String nid, Map<String, String> tags) {
         this.stepS = stepS;
         this.nid = nid;
         this.url = url;
@@ -39,13 +40,12 @@ public class Encoder {
         this.batchSize = batchSize;
         this.samples = new ArrayList<>(batchSize);
         this.tags = tags;
-        this.tagStr = this.tags.entrySet().stream().map((e)->{
-            return escapeJson(e.getKey())+"="+escapeJson(e.getValue());
+        this.tagStr = this.tags.entrySet().stream().map((e) -> {
+            return escapeJson(e.getKey()) + "=" + escapeJson(e.getValue());
         }).collect(Collectors.joining(","));
 
 
     }
-
 
 
     void add(Collector.MetricFamilySamples.Sample sample) {
@@ -117,8 +117,12 @@ public class Encoder {
             try {
                 HttpResponse response = client.execute(post);
                 final HttpEntity entity = response.getEntity();
-                System.out.println(response.getStatusLine());
-                System.out.println(EntityUtils.toString(entity));
+                String resp = EntityUtils.toString(entity);
+                if (!resp.startsWith("{\"dat\":\"ok\"")) {
+                    logger.log(Level.WARNING, "nightingale get response"+resp+" from " + this.url );
+                }
+
+                System.out.println();
                 if (entity != null) {
                     try (final InputStream inStream = entity.getContent()) {
                         //inStream.read();

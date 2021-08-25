@@ -31,6 +31,15 @@ public class CollectorRegistry {
   private final Map<Collector, List<String>> collectorsToNames = new HashMap<Collector, List<String>>();
   private final Map<String, Collector> namesToCollectors = new HashMap<String, Collector>();
 
+  public Map<String, String> getGlobalTags() {
+    return globalTags;
+  }
+
+  public void setGlobalTags(Map<String, String> globalTags) {
+    this.globalTags = globalTags;
+  }
+
+  private   Map<String,String> globalTags;
   private final boolean autoDescribe;
 
   public CollectorRegistry() {
