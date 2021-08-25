@@ -121,8 +121,6 @@ public class Encoder {
                 if (!resp.startsWith("{\"dat\":\"ok\"")) {
                     logger.log(Level.WARNING, "nightingale get response"+resp+" from " + this.url );
                 }
-
-                System.out.println();
                 if (entity != null) {
                     try (final InputStream inStream = entity.getContent()) {
                         //inStream.read();

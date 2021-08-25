@@ -44,10 +44,9 @@ public class NightingaleTest {
   }
   @Test
   public void testPushLoop(){
-    Map<String,String> tags=new HashMap<>();
-    tags.put("test","test2");
-    Metrics metric= new Metrics("infra","metrics","test", tags);
-    Gauge labels = Gauge.build().name("test_test2").help("help").labelNames("l").register();
+    Metrics metric= new Metrics("infra","metrics","test");
+    Gauge labels = Gauge.build().name("test_test3").help("help").labelNames("l").register();
+    labels.labels("foo").inc();
     labels.labels("foo").inc();
     labels.labels("foo").inc();
     metric.StartPushLoop(1,"http://10.110.20.100:8080/api/transfer/push");
@@ -59,9 +58,7 @@ public class NightingaleTest {
   }
   @Test
   public void testExport() throws IOException {
-    Map<String,String> tags=new HashMap<>();
-    tags.put("test","test2");
-    Metrics metric= new Metrics("infra","metrics","test", tags);
+    Metrics metric= new Metrics("infra","metrics","test");
     Gauge labels = Gauge.build().name("test_test2").help("help").labelNames("l","l2").register();
     labels.labels("foo","f2").inc();
     metric.StartPullHttpServer(9000);

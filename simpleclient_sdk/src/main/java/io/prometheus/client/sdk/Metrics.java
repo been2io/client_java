@@ -18,6 +18,11 @@ public class Metrics {
 
     }
 
+    public Metrics(String bu, String project, String app) {
+        this(bu, project, app, null);
+
+    }
+
     public Metrics(String bu, String project, String app, Map<String, String> globalTags, CollectorRegistry registry) {
         this.registry = registry;
         this.tags = new HashMap<>();
