@@ -40,9 +40,12 @@ public class Encoder {
         this.batchSize = batchSize;
         this.samples = new ArrayList<>(batchSize);
         this.tags = tags;
-        this.tagStr = this.tags.entrySet().stream().map((e) -> {
-            return escapeJson(e.getKey()) + "=" + escapeJson(e.getValue());
-        }).collect(Collectors.joining(","));
+        if (this.tags!=null){
+            this.tagStr = this.tags.entrySet().stream().map((e) -> {
+                return escapeJson(e.getKey()) + "=" + escapeJson(e.getValue());
+            }).collect(Collectors.joining(","));
+        }
+
 
 
     }
@@ -50,9 +53,6 @@ public class Encoder {
 
     void add(Collector.MetricFamilySamples.Sample sample) {
         this.samples.add(sample);
-        if (this.samples.size() == 100) {
-            send();
-        }
     }
 
 
@@ -60,8 +60,10 @@ public class Encoder {
         return System.currentTimeMillis() / 1000;
     }
 
-    void writeMessage(StringBuilder sb, Collector.MetricFamilySamples.Sample sample) {
-        Long timestamp = generateTimestamp();
+    void writeMessage(StringBuilder sb, Collector.MetricFamilySamples.Sample sample,Long timestamp) {
+        if (sample.labelNames.size() != sample.labelValues.size()) {
+            return;
+        }
         String type = "GAUGE";
         String name = sample.name;
         sb.append("{\"").append("timestamp").append("\":").append(timestamp)
@@ -92,24 +94,27 @@ public class Encoder {
         send();
     }
 
-    String marshalBatch() {
+    String marshalBatch(Long timestamp) {
+
         builder.append("[");
-        this.samples.stream().peek(sample -> {
-            writeMessage(builder, sample);
-        }).skip(1).forEach(sample -> {
-            builder.append(",\n");
-            writeMessage(builder, sample);
-        });
+        int len = this.samples.size();
+        for (int i = 0; i < len; i++) {
+            if (i != 0) {
+                builder.append(",\n");
+            }
+            writeMessage(builder, this.samples.get(i),timestamp);
+        }
         builder.append("]");
         String body = builder.toString();
         builder.setLength(0);
+        this.samples.clear();
         return body;
     }
 
     private void send() {
+        Long timestamp = generateTimestamp();
         if (this.samples.size() > 0) {
-            String body = marshalBatch();
-            this.samples.clear();
+            String body = marshalBatch(timestamp);
             HttpPost post = new HttpPost(this.url);
             StringEntity requestEntity = new StringEntity(
                     body, ContentType.APPLICATION_JSON);
@@ -119,7 +124,7 @@ public class Encoder {
                 final HttpEntity entity = response.getEntity();
                 String resp = EntityUtils.toString(entity);
                 if (!resp.startsWith("{\"dat\":\"ok\"")) {
-                    logger.log(Level.WARNING, "nightingale get response"+resp+" from " + this.url );
+                    logger.log(Level.WARNING, "nightingale get response" + resp + " from " + this.url);
                 }
                 if (entity != null) {
                     try (final InputStream inStream = entity.getContent()) {

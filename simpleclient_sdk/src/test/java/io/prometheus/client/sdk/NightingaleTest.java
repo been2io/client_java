@@ -3,11 +3,8 @@ package io.prometheus.client.sdk;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
-import io.prometheus.client.Collector;
+import io.prometheus.client.*;
 import org.junit.Test;
-
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -29,7 +26,7 @@ public class NightingaleTest {
         encoder.add(sample);
       }
     }
-    String body=encoder.marshalBatch();
+    String body=encoder.marshalBatch(2212111l);
     System.out.println(body);
   }
   @Test
@@ -49,6 +46,12 @@ public class NightingaleTest {
     labels.labels("foo").inc();
     labels.labels("foo").inc();
     labels.labels("foo").inc();
+    Histogram s= Histogram.build().name("histogram1").help("help").labelNames("sl").register();
+    s.labels("l1").observe(0.88);
+    s.labels("l1").observe(0.77);
+    s.labels("l2").observe(0.66);
+    Gauge labels2 = Gauge.build().name("test_test4").help("help").labelNames("l").register();
+    labels2.labels("foo").inc();
     metric.StartPushLoop(1,"http://10.110.20.100:8080/api/transfer/push");
     try {
       Thread.sleep(1000*60);

@@ -14,7 +14,7 @@ public class Nightingale {
     private final Encoder encoder;
 
     public Nightingale(String url, int batchSize, int interval, String tenantId, Map<String, String> globalTags) {
-        this.encoder = new Encoder(url, 100, 10, tenantId,globalTags);
+        this.encoder = new Encoder(url, 100, interval, tenantId,globalTags);
     }
 
     public Nightingale(String url,int interval, Map<String, String> globalTags) {
