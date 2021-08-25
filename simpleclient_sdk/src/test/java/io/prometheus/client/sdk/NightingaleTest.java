@@ -64,6 +64,10 @@ public class NightingaleTest {
     Metrics metric= new Metrics("infra","metrics","test");
     Gauge labels = Gauge.build().name("test_test2").help("help").labelNames("l","l2").register();
     labels.labels("foo","f2").inc();
+    Histogram s= Histogram.build().name("histogram1").help("help").labelNames("sl").register();
+    s.labels("l1").observe(0.88);
+    s.labels("l1").observe(0.77);
+    s.labels("l2").observe(0.66);
     metric.StartPullHttpServer(9000);
     try {
       Thread.sleep(1000*60);
